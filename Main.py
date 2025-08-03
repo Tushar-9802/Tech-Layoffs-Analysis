@@ -1,13 +1,14 @@
-import pandas as pd
 from Clean import clean_layoff_data
+import pandas as pd
 
-#---Load CSV as DataFrame---#
-df = pd.read_csv("layoffs.csv")
+def main():
+    df = pd.read_csv("layoffs.csv")
+    df_clean = clean_layoff_data(df)
+    df_clean.to_csv("Cleaned_layoffs.csv", index=False)
+    print("✅ Data cleaned and saved.")
+    
+    print(df['estimated_company_size'].describe())
+    print(df['company_size_category'].value_counts(dropna=False))
 
-#---Clean the DataFrame using the external cleaning function---#
-df1 = clean_layoff_data(df)
-
-#---Example: Display first 5 rows of the cleaned percentage laid off column---#
-print(df1['percentage_laid_off'].head())
-
-# Continue with your analysis or visualization here
+if __name__ == "__main__":
+    main()

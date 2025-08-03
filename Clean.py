@@ -9,11 +9,11 @@ def clean_layoff_data(df):
 
     # Clean and convert 'percentage_laid_off' from string with '%' to float
     df['percentage_laid_off'] = (
-        df['percentage_laid_off']
-        .astype(str)
-        .str.replace('%', '')
-        .replace('nan', None)
-        .astype(float)
+    df['percentage_laid_off']
+    .astype(str)
+    .str.replace('%', '')
+    .replace({'nan': None, 'None': None, '': None})
+    .astype(float)
     )
 
     # Function to Convert Funds into Numerical values
@@ -42,9 +42,11 @@ def clean_layoff_data(df):
     # Company Size based on Layoffs
     def estimate_size(row):
         try:
-            return int(row['total_laid_off'] / (row['percentage_laid_off'] / 100))
+            if pd.notna(row['total_laid_off']) and pd.notna(row['percentage_laid_off']) and row['percentage_laid_off'] > 0:
+                return int(row['total_laid_off'] / (row['percentage_laid_off'] / 100))
         except:
             return None
+        return None
 
     df['estimated_company_size'] = df.apply(estimate_size, axis=1)
 
