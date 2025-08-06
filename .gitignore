@@ -1,0 +1,35 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# === Virtual Environment ===
+venv/
+ENV/
+env/
+.venv/
+
+# === Jupyter Notebook ===
+.ipynb_checkpoints/
+
+# === VSCode / IDE ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# === MacOS ===
+.DS_Store
+
+# === Logs & Caches ===
+*.log
+*.cache
+
+# === System Files ===
+Thumbs.db
+ehthumbs.db
+desktop.ini
