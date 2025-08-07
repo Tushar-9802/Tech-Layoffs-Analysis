@@ -1,14 +1,19 @@
-from Clean import clean_layoff_data
-import pandas as pd
+import streamlit as st
 
-def main():
-    df = pd.read_csv("layoffs.csv")
-    df_clean = clean_layoff_data(df)
-    df_clean.to_csv("Cleaned_layoffs.csv", index=False)
-    print("✅ Data cleaned and saved.")
-    
-    print(df['estimated_company_size'].describe())
-    print(df['company_size_category'].value_counts(dropna=False))
+# Set page configuration
+st.set_page_config(
+    page_title="Tech Layoffs Dashboard",
+    page_icon="📉",
+    layout="wide",
+)
 
-if __name__ == "__main__":
-    main()
+# Title and description
+st.title("📉 Tech Layoffs Dashboard (2020–2025)")
+st.markdown("""
+Welcome to the **Tech Layoffs Dashboard** — an interactive tool to explore layoffs across the tech sector from 2020 to 2025.
+
+Use the **sidebar** to:
+- Navigate between sections
+- Filter by country, industry, or company size
+- Analyze custom metrics
+""")
