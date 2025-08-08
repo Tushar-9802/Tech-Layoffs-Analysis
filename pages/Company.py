@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 st.set_page_config(page_title="Company Explorer", layout="wide")
-st.title("🏢 Company Landscape Explorer")
+st.title("Company Landscape Explorer")
 
 @st.cache_data
 def load_data():
@@ -22,7 +22,7 @@ df_industry = df[df['industry'] == selected_industry]
 
 highlight_company = st.sidebar.selectbox("Compare Against", sorted(df_industry['company'].dropna().unique()))
 
-st.markdown(f"### 🎯 Industry: {selected_industry} | 🔍 Focus: {highlight_company}")
+st.markdown(f"### Industry: {selected_industry} | Focus: {highlight_company}")
 st.markdown("---")
 
 # 1> Top 10 Companies in Industry
@@ -60,7 +60,7 @@ st.plotly_chart(fig_top, use_container_width=True)
 st.markdown("---")
 
 # 2> Industry Share Donut Chart.
-st.subheader("🍩 Layoff Share Within Industry")
+st.subheader("2. Layoff Share Within Industry")
 industry_share = df_industry.groupby('company')['total_laid_off'].sum().reset_index()
 fig_pie = px.pie(
     industry_share,
@@ -86,7 +86,7 @@ st.plotly_chart(fig_pie, use_container_width=True)
 st.markdown("---")
 
 # 3> Quarterly Trend Comparison.
-st.subheader("📈 Quarterly Layoffs: Highlight vs Top 4")
+st.subheader("3. Quarterly Layoffs: Highlight vs Top 4")
 
 # Get top 4 companies by total layoffs in the selected industry
 top_4 = (
@@ -135,7 +135,7 @@ st.plotly_chart(fig_line, use_container_width=True)
 st.markdown("---")
 
 # 4> Optional Table.
-st.subheader(f"📆 Layoff Events for {highlight_company}")
+st.subheader(f"4. Layoff Events for {highlight_company}")
 selected_df = df_industry[df_industry['company'] == highlight_company]
 display_cols = ['date', 'location', 'total_laid_off', 'percentage_laid_off']
 st.dataframe(selected_df[display_cols].sort_values('date'), use_container_width=True)
