@@ -113,8 +113,123 @@ fig_ts.update_layout(
 )
 st.plotly_chart(fig_ts, use_container_width=True)
 
-#2> Cumulative Layoffs (selected years) ----------------
-st.subheader("2. Cumulative Layoffs (Selected Years)")
+# ---------- 2) Layoff Share Within Industry (Donut) ----------
+st.subheader("2. Layoff Share Within Industry")
+
+# Base share: sum layoffs by company inside the selected industry (+years)
+highlight_company = selected_company if selected_company != "All Companies" else None
+companies_in_industry = (
+    df_full[df_full["industry"] == selected_industry]["company"].dropna().unique()
+)
+
+industry_share = (
+    df_base
+    .groupby('company')['total_laid_off']
+    .sum()
+    .reset_index()
+)
+
+# Ensure all companies in this industry appear (even if 0 layoffs in the scope)
+missing_zero = set(companies_in_industry) - set(industry_share['company'])
+if missing_zero:
+    industry_share = pd.concat(
+        [industry_share, pd.DataFrame({'company': list(missing_zero), 'total_laid_off': 0})],
+        ignore_index=True
+    )
+
+# Keep highlight company present (even if filtered to zero)
+if highlight_company and highlight_company not in industry_share['company'].values:
+    industry_share = pd.concat(
+        [industry_share, pd.DataFrame({'company': [highlight_company], 'total_laid_off': [0]})],
+        ignore_index=True
+    )
+
+total_scope = industry_share['total_laid_off'].sum()
+
+if total_scope == 0:
+    st.info("No layoff records for the selected scope — showing an empty donut.")
+    fig_pie = px.pie(
+        pd.DataFrame({'company': ['No data'], 'total_laid_off': [1]}),
+        names='company',
+        values='total_laid_off',
+        hole=0.7,
+        title=""
+    )
+    fig_pie.update_traces(
+        textinfo='none',
+        marker=dict(line=dict(color='rgba(0,0,0,0)', width=0)),
+        showlegend=True
+    )
+else:
+    # Calculate share and group small slices into "Others"
+    industry_share = industry_share.sort_values('total_laid_off', ascending=False)
+    industry_share['share'] = industry_share['total_laid_off'] / total_scope
+    main_companies = industry_share[industry_share['share'] >= 0.008].copy()
+    others = industry_share[industry_share['share'] < 0.008].copy()
+    if not others.empty:
+        others_label = "Others"
+        others_total = others['total_laid_off'].sum()
+        # Combine hover text for all "Others"
+        others_hover = "<br>".join([
+            f"{row['company']}: {row['total_laid_off']:,} layoffs ({row['share']*100:.2f}%)"
+            for _, row in others.iterrows()
+        ])
+        main_companies = pd.concat([
+            main_companies,
+            pd.DataFrame({
+                'company': [others_label],
+                'total_laid_off': [others_total],
+                'share': [others_total / total_scope],
+                'hover': [others_hover]
+            })
+        ], ignore_index=True)
+        hover_texts = main_companies.apply(
+            lambda row: row['hover'] if row['company'] == others_label else
+            f"{row['company']}: {row['total_laid_off']:,} layoffs ({row['share']*100:.2f}%)",
+            axis=1
+        )
+    else:
+        main_companies['hover'] = main_companies.apply(
+            lambda row: f"{row['company']}: {row['total_laid_off']:,} layoffs ({row['share']*100:.2f}%)",
+            axis=1
+        )
+        hover_texts = main_companies['hover']
+
+    pull_vals = [
+        0.06 if c == highlight_company else 0
+        for c in main_companies['company']
+    ]
+
+    fig_pie = px.pie(
+        main_companies,
+        names='company',
+        values='total_laid_off',
+        hole=0.7,
+        title=""
+    )
+    # Remove leader lines, remove text outside, custom hover
+    fig_pie.update_traces(
+        textinfo='none',  # No text on wedges
+        hoverinfo='skip',
+        hovertemplate=hover_texts,
+        pull=pull_vals,
+        marker=dict(line=dict(color='rgba(0,0,0,0)', width=0)),  # No outlines
+        showlegend=True
+    )
+
+fig_pie.update_layout(
+    template="plotly_white",
+    height=720,
+    legend_title_text='Company',
+    showlegend=True,
+    margin=dict(t=20, b=20, l=80, r=80)
+)
+
+st.plotly_chart(fig_pie, use_container_width=True)
+st.markdown("---")
+
+#3> Cumulative Layoffs (selected years) ----------------
+st.subheader("3. Cumulative Layoffs (Selected Years)")
 ts_cum = ts.copy()
 ts_cum["cumulative"] = ts_cum["total_laid_off"].cumsum()
 fig_cum = px.area(ts_cum, x="quarter", y="cumulative")
@@ -125,8 +240,8 @@ fig_cum.update_layout(
 )
 st.plotly_chart(fig_cum, use_container_width=True)
 
-#3> % Laid Off per Event (distribution) ----------------
-st.subheader("3. Percentage Laid Off per Event")
+#4> % Laid Off per Event (distribution) ----------------
+st.subheader("4. Percentage Laid Off per Event")
 if "percentage_laid_off" in df_company.columns and df_company["percentage_laid_off"].notna().any():
     fig_pct = px.box(df_company, y="percentage_laid_off", points="all")
     fig_pct.update_layout(
@@ -137,8 +252,8 @@ if "percentage_laid_off" in df_company.columns and df_company["percentage_laid_o
 else:
     st.info("No percentage data available for this company in the selected years.")
 
-#4> Layoff Rounds per Year ----------------
-st.subheader("4. Layoff Rounds per Year")
+#5> Layoff Rounds per Year ----------------
+st.subheader("5. Layoff Rounds per Year")
 rounds_year = (
     df_company.dropna(subset=["date"])
     .groupby("year")["date"].nunique()
@@ -153,8 +268,8 @@ fig_rounds.update_layout(
 )
 st.plotly_chart(fig_rounds, use_container_width=True)
 
-#5> Top Locations ----------------
-st.subheader("5. Top Locations by Total Layoffs")
+#6> Top Locations ----------------
+st.subheader("6. Top Locations by Total Layoffs")
 if "location" in df_company.columns and df_company["location"].notna().any():
     top_loc = (
         df_company.groupby("location")["total_laid_off"]
@@ -173,7 +288,7 @@ else:
 st.markdown("---")
 
 # ---------------- Events Table + CSV Download ----------------
-st.subheader("6. Layoff Events (Filtered)")
+st.subheader("7. Layoff Events (Filtered)")
 display_cols = [
     "date", "quarter", "location", "country", "industry", "stage",
     "company_size_category", "total_laid_off", "percentage_laid_off"
