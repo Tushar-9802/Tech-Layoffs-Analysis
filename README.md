@@ -1,21 +1,49 @@
 # 📊 Tech Layoff Analysis (2020–2025)
 
-A comprehensive data exploration of global tech layoffs from the pandemic through the rise of AI, revealing patterns across companies, industries, and locations — with advanced custom metrics to uncover rarely seen insights.
+A comprehensive data exploration of **global tech layoffs** from the pandemic through the rise of AI — revealing patterns across companies, industries, and locations, with **advanced custom metrics** to uncover rarely seen insights.
 
 ---
 
 ## 🔍 Project Highlights
 
-- 📈 Temporal trends of layoffs across funding stages, company sizes, and sectors  
-- 🧠 Advanced metrics introduced:  
-  - Layoff Efficiency Score (LES)  
-  - Layoff Instability Score (LIS)  
-  - Layoff Severity Index (LSI)  
-  - Location Fragility Index  
-  - Industry Survivability Score  
-  - Bounceback Potential Score  
-- 🌎 Geo-based fragility insights and sector resilience mapping  
-- 💡 Contextual reasoning tied to real-world events (COVID-19, funding slowdowns, AI boom, geopolitical shifts)
+- 📈 **Temporal trends** of layoffs across funding stages, company sizes, and sectors  
+- 🧠 **Advanced metrics introduced**:
+  - **Layoff Efficiency Score (LES)**
+  - **Layoff Instability Score (LIS)**
+  - **Layoff Severity Index (LSI)**
+  - **Location Fragility Index**
+  - **Industry Survivability Score**
+  - **Bounceback Potential Score**
+- 🌎 **Geo-based fragility** insights and sector resilience mapping  
+- 💡 **Contextual reasoning** tied to real-world events  
+  *(COVID-19, funding slowdowns, AI boom, geopolitical shifts)*  
+
+---
+
+## 🖥️ Project Components
+
+### 1. **Jupyter Notebook (`EDA.ipynb`)**
+The notebook contains:
+- **Static, text-based inferences** alongside charts
+- **Step-by-step exploratory analysis**
+- **Contextual insights** based on real-world events
+- **Advanced calculated metrics** explained in detail
+
+Run it locally to reproduce the **original exploratory workflow** and annotations.
+
+---
+
+### 2. **Streamlit Dashboard**
+An **interactive** version of the analysis that lets you:
+- Filter data by **year**, **country**, **industry**, and **company**
+- View **dynamic, graph-based inferences** in real-time
+- Access **three main pages**:
+  1. **Trends** – High-level layoffs patterns over time  
+  2. **Company** – Deep dive into specific companies and comparisons  
+  3. **Custom Metrics** – Advanced calculated indicators like LES, LIS, and LSI  
+
+🚀 **Live Deployment:**  
+[**Tech Layoffs Analysis – Streamlit App**](https://tushar9802-tech-layoffs-analysis.streamlit.app/)
 
 
 ---
@@ -24,15 +52,9 @@ A comprehensive data exploration of global tech layoffs from the pandemic throug
 
 1. Clone the repo:
 ```
-git clone https://github.com/yourusername/layoff-eda.git
-cd layoff-eda
+git clone https://github.com/Tushar-9802/Tech-Layoffs-Analysis.git
 ```
 
-2. Launch the notebook:
-
-```
-jupyter notebook EDA.ipynb
-```
 
 🧾 Section 5: Requirements  
 ---
@@ -40,10 +62,15 @@ jupyter notebook EDA.ipynb
 ## 🧪 Requirements
 
 The following Python libraries are required:
-- pandas
-- numpy
-- matplotlib
-- seaborn
+
+-streamlit>=1.31
+-pandas
+-plotly
+-numpy
+-matplotlib
+-seaborn
+-xlsxwriter   # for XLSX downloads
+
 
 - Install dependencies:
 
@@ -61,6 +88,8 @@ pip install -r requirements.txt
 
 🔗 (https://www.linkedin.com/in/tushar-jaju-240b501a6/)  
 🎯 Data analyst and Python enthusiast focused on insight-driven storytelling.
+
+
 🧾 Section 7: Dataset Source
 
 ---
