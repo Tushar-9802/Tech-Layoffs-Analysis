@@ -1,300 +1,193 @@
+# pages/Company_Profiles.py  (or whatever your file is named for the per-company deep dive)
+
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import numpy as np
-from io import BytesIO  # NEW: for downloads
+import plotly.express as px
+from io import BytesIO
 
-st.set_page_config(page_title="Company Explorer", layout="wide")
-st.title("Company Landscape Explorer")
+st.set_page_config(page_title="Company Profiles", layout="wide")
+st.title("🏢 Company Layoff Profiles")
 
 @st.cache_data
 def load_data():
     df = pd.read_csv("data/Cleaned_layoffs.csv")
-    df['date'] = pd.to_datetime(df['date'], errors='coerce')
-    df['quarter'] = df['date'].dt.to_period('Q').astype(str)  # stored as str "2023Q1"
-    df['year'] = df['date'].dt.year                           # <-- add year
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df["quarter"] = df["date"].dt.to_period("Q").astype(str)
+    df["year"] = df["date"].dt.year
     return df
 
-df = load_data()
+df_full = load_data()
 
-# ---------- Sidebar Filters ----------
-st.sidebar.header("Filters")
+# ---------------- Sidebar (match Trends behavior) ----------------
+with st.sidebar:
+    st.header("Filters")
 
-# Multi-year selection (safe and defaults to all years)
-years_avail = sorted(df['year'].dropna().unique().tolist())
-selected_years = st.sidebar.multiselect(
-    "Select Year(s)",
-    options=years_avail,
-    default=years_avail
-)
+    # Year(s) selection
+    years_avail = sorted(df_full["year"].dropna().unique().tolist())
+    selected_years = st.multiselect(
+        "Select Year(s)",
+        options=years_avail,
+        default=None
+    )
 
-# Apply year filter
-if selected_years:
-    df = df[df['year'].isin(selected_years)]
+    # Apply year filter first
+    df_base = df_full.copy()
+    if selected_years:
+        df_base = df_base[df_base["year"].isin(selected_years)]
 
-industries = sorted(df['industry'].dropna().unique())
-if not industries:
-    st.warning("No industries found in data.")
+    # Industry selection
+    industries = sorted(df_base["industry"].dropna().unique())
+    selected_industry = st.selectbox("Select Industry", industries)
+
+    # Apply industry filter
+    df_base = df_base[df_base["industry"] == selected_industry]
+
+    # Company selection (filtered by both)
+    companies = sorted(df_base["company"].dropna().unique())
+    company_options = ["All Companies"] + companies
+    selected_company = st.selectbox("Select a Company", company_options, index=0)
+
+    smooth_toggle = st.checkbox("Smooth timelines (2-quarter rolling mean)", value=True)
+
+# Build the slice for THIS company or all companies
+if selected_company == "All Companies":
+    df_company_all = df_full[df_full["industry"] == selected_industry].copy()
+    if selected_years:
+        df_company_all = df_company_all[df_company_all["year"].isin(selected_years)]
+    df_company = df_company_all.copy()
+else:
+    df_company_all = df_full[df_full["company"] == selected_company].copy()
+    df_company = df_company_all.copy()
+    if selected_years:
+        df_company = df_company[df_company["year"].isin(selected_years)]
+
+years_label = "All years" if not selected_years else ", ".join(map(str, selected_years))
+scope_label = f"**{selected_company}**" if selected_company != "All Companies" else "**All Companies**"
+st.caption(f"Scope: {scope_label} — Years: **{years_label}**")
+
+# Guard
+if df_company.empty:
+    st.info("No layoff records for this selection in the selected years.")
     st.stop()
 
-selected_industry = st.sidebar.selectbox("Select Industry", industries)
-df_industry = df[df['industry'] == selected_industry].copy()
-
-companies_in_industry = sorted(df_industry['company'].dropna().unique())
-if not companies_in_industry:
-    st.warning(f"No companies found for industry: {selected_industry}")
-    st.stop()
-
-highlight_company = st.sidebar.selectbox("Compare Against", companies_in_industry)
-
-# Optional smoothing toggle for trend chart
-smooth_toggle = st.sidebar.checkbox("Smooth trend (2-quarter rolling mean)", value=True)
-
-years_label = ", ".join(map(str, selected_years)) if selected_years else "All"
-st.markdown(f"### Industry: **{selected_industry}**  |  Years: **{years_label}**  |  Focus: **{highlight_company}**")
 st.markdown("---")
 
-# ---------- NEW: KPI Header (Context) ----------
-try:
-    industry_total = int(df_industry['total_laid_off'].sum())
-    companies_affected = int(df_industry['company'].nunique())
+# ---------------- KPI Header ----------------
+total_laid_off = int(df_company["total_laid_off"].sum())
+rounds = int(df_company["date"].nunique())
+peak_q = (
+    df_company.groupby("quarter")["total_laid_off"]
+    .sum().reset_index()
+    .sort_values("total_laid_off", ascending=False).head(1)
+)
+peak_q_label = peak_q["quarter"].iloc[0] if not peak_q.empty else "—"
+peak_q_val = int(peak_q["total_laid_off"].iloc[0]) if not peak_q.empty else 0
 
-    comp_total = int(df_industry.loc[df_industry['company'] == highlight_company, 'total_laid_off'].sum())
-    share_pct = (comp_total / industry_total * 100.0) if industry_total > 0 else np.nan
-
-    ranks = (
-        df_industry.groupby('company')['total_laid_off']
-        .sum().sort_values(ascending=False)
-    )
-    rank_pos = (ranks.index.get_loc(highlight_company) + 1) if highlight_company in ranks.index else None
-
-    comp_q = (
-        df_industry[df_industry['company'] == highlight_company]
-        .groupby('quarter')['total_laid_off'].sum().reset_index()
-    )
-    peak_row = comp_q.loc[comp_q['total_laid_off'].idxmax()] if not comp_q.empty else None
-    peak_q_label = str(peak_row['quarter']) if peak_row is not None else "—"
-    peak_q_val = int(peak_row['total_laid_off']) if peak_row is not None else 0
-
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Industry Layoffs (scope)", f"{industry_total:,}")
-    k2.metric("Companies Affected", f"{companies_affected:,}")
-    k3.metric("Focus Rank / Share", f"{(rank_pos if rank_pos else '—')} / {share_pct:.1f}%" if not np.isnan(share_pct) else "—")
-    k4.metric("Focus Peak Quarter", f"{peak_q_label}", delta=f"{peak_q_val:,} laid off" if peak_q_val else None)
-except Exception:
-    # Soft-fail if any edge case occurs
-    pass
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("Total Layoffs (scope)", f"{total_laid_off:,}")
+k2.metric("Layoff Rounds", f"{rounds:,}")
+k3.metric("Peak Quarter", f"{peak_q_label}", delta=f"{peak_q_val:,} laid off" if peak_q_val else None)
+k4.metric("Unique Locations", f"{df_company['location'].nunique():,}")
 
 st.markdown("---")
 
-# ---------- 1) Top Companies by Total Layoffs ----------
-top_companies_raw = (
-    df_industry.groupby('company')['total_laid_off']
-    .sum()
-    .sort_values(ascending=False)
-    .head(10)
+#1> Quarterly Layoff Timeline ----------------
+st.subheader(f"1. Layoff Timeline — {selected_company}")
+ts = (
+    df_company.groupby("quarter")["total_laid_off"]
+    .sum().reset_index().sort_values("quarter")
 )
+if smooth_toggle:
+    ts["y"] = ts["total_laid_off"].rolling(2, min_periods=1).mean()
+    ylab = "Total Laid Off (Smoothed)"
+else:
+    ts["y"] = ts["total_laid_off"]
+    ylab = "Total Laid Off"
 
-# Ensure the highlight company is included even if not in the top 10 (or has 0)
-top_companies = top_companies_raw.copy()
-if highlight_company not in top_companies.index:
-    highlight_val = df_industry.loc[df_industry['company'] == highlight_company, 'total_laid_off'].sum()
-    top_companies.loc[highlight_company] = highlight_val
-
-top_companies = top_companies.sort_values(ascending=False).reset_index()
-
-st.subheader("1. Top Companies by Total Layoffs")
-fig_top = px.bar(
-    top_companies,
-    x='total_laid_off',
-    y='company',
-    orientation='h',
-    color=top_companies['company'].apply(lambda x: "Selected" if x == highlight_company else "Other"),
-    color_discrete_map={"Selected": "#EF553B", "Other": "#636EFA"}
-)
-fig_top.update_layout(
-    xaxis_title="Total Laid Off",
-    yaxis_title="Company",
-    template="plotly_white",
-    showlegend=False
-)
-st.plotly_chart(fig_top, use_container_width=True)
-
-st.markdown("---")
-
-# ---------- 2) Layoff Share Within Industry (Donut) ----------
-st.subheader("2. Layoff Share Within Industry")
-industry_share = df_industry.groupby('company')['total_laid_off'].sum().reset_index()
-
-# Ensure zero-layoff companies appear in pie (gives them 0 weight)
-missing_zero = set(companies_in_industry) - set(industry_share['company'])
-if missing_zero:
-    industry_share = pd.concat([
-        industry_share,
-        pd.DataFrame({"company": list(missing_zero), "total_laid_off": 0})
-    ], ignore_index=True)
-
-fig_pie = px.pie(
-    industry_share,
-    names='company',
-    values='total_laid_off',
-    hole=0.7
-)
-fig_pie.update_traces(
-    textinfo='none',  # no long labels on slices
-    pull=[0.05 if c == highlight_company else 0 for c in industry_share['company']],
-    hovertemplate='%{label}: %{percent:.1%}<extra></extra>',  # % on hover
-    marker=dict(line=dict(color='rgba(0,0,0,0)', width=0))  # no white leader lines
-)
-fig_pie.update_layout(
-    template="plotly_white",
-    height=720,  # bigger donut
-    legend_title_text='Company',
-    showlegend=True,
-    margin=dict(t=20, b=20, l=80, r=80)
-)
-st.plotly_chart(fig_pie, use_container_width=True)
-
-st.markdown("---")
-
-#3> Layoffs by Stage (NEW) ----------
-st.subheader("3. Layoffs by Funding Stage (Industry Scope)")
-stage_counts = (
-    df_industry.assign(stage=df_industry['stage'].fillna("Unknown"))
-    .groupby('stage')['total_laid_off'].sum()
-    .sort_values(ascending=False).reset_index()
-)
-fig_stage = px.bar(stage_counts, x='total_laid_off', y='stage', orientation='h', title="")
-fig_stage.update_layout(
-    xaxis_title="Total Laid Off",
-    yaxis_title="Stage",
+fig_ts = px.line(ts, x="quarter", y="y", markers=True)
+fig_ts.update_layout(
+    xaxis_title="Quarter",
+    yaxis_title=ylab,
     template="plotly_white"
 )
-st.plotly_chart(fig_stage, use_container_width=True)
+st.plotly_chart(fig_ts, use_container_width=True)
 
-st.markdown("---")
-
-#4> Quarterly Layoffs: Highlight vs Top 4 ----------
-st.subheader("4. Quarterly Layoffs: Highlight vs Top 4")
-
-top_4 = (
-    df_industry.groupby('company')['total_laid_off']
-    .sum().sort_values(ascending=False)
-    .head(4).index.tolist()
+#2> Cumulative Layoffs (selected years) ----------------
+st.subheader("2. Cumulative Layoffs (Selected Years)")
+ts_cum = ts.copy()
+ts_cum["cumulative"] = ts_cum["total_laid_off"].cumsum()
+fig_cum = px.area(ts_cum, x="quarter", y="cumulative")
+fig_cum.update_layout(
+    xaxis_title="Quarter",
+    yaxis_title="Cumulative Laid Off",
+    template="plotly_white"
 )
-compare_companies = sorted(set(top_4 + [highlight_company]))
+st.plotly_chart(fig_cum, use_container_width=True)
 
-df_compare = df_industry[df_industry['company'].isin(compare_companies)].copy()
-
-# Build a complete grid of quarters × companies using PeriodIndex (robust to str quarters)
-if df_compare.empty:
-    st.info("No quarterly data available for this selection.")
-else:
-    # Convert to PeriodIndex to compute a full range
-    quarters_pi = pd.PeriodIndex(df_compare['quarter'], freq='Q')
-    q_min, q_max = quarters_pi.min(), quarters_pi.max()
-    # In rare cases with a single quarter, guard for None
-    if pd.isna(q_min) or pd.isna(q_max):
-        all_quarters = sorted(df_compare['quarter'].unique())
-    else:
-        all_quarters = pd.period_range(q_min, q_max, freq='Q').astype(str).tolist()
-
-    full_index = pd.MultiIndex.from_product([all_quarters, compare_companies], names=['quarter', 'company'])
-
-    trend = (
-        df_compare.groupby(['quarter', 'company'])['total_laid_off']
-        .sum().reindex(full_index, fill_value=0).reset_index()
-    )
-
-    # Optional smoothing
-    if smooth_toggle:
-        trend['y_value'] = (
-            trend.groupby('company')['total_laid_off']
-            .transform(lambda x: x.rolling(window=2, min_periods=1).mean())
-        )
-        y_label = "Total Laid Off (Smoothed)"
-    else:
-        trend['y_value'] = trend['total_laid_off']
-        y_label = "Total Laid Off"
-
-    fig_line = px.line(
-        trend,
-        x='quarter',
-        y='y_value',
-        color='company',
-        markers=True
-    )
-    fig_line.update_layout(
-        xaxis_title="Quarter",
-        yaxis_title=y_label,
+#3> % Laid Off per Event (distribution) ----------------
+st.subheader("3. Percentage Laid Off per Event")
+if "percentage_laid_off" in df_company.columns and df_company["percentage_laid_off"].notna().any():
+    fig_pct = px.box(df_company, y="percentage_laid_off", points="all")
+    fig_pct.update_layout(
+        yaxis_title="Percentage of Workforce Laid Off",
         template="plotly_white"
     )
-    st.plotly_chart(fig_line, use_container_width=True)
+    st.plotly_chart(fig_pct, use_container_width=True)
+else:
+    st.info("No percentage data available for this company in the selected years.")
 
-st.markdown("---")
-
-#5> Highlight vs Industry Average per Active Company (NEW) ----------
-st.subheader("5. Focus vs Industry Avg per Active Company")
-
-# Per-quarter totals for industry
-ind_q = df_industry.groupby('quarter')['total_laid_off'].sum().reset_index()
-# Active companies per quarter (industry)
-ind_active = df_industry.groupby('quarter')['company'].nunique().reset_index(name='active_companies')
-ind_join = ind_q.merge(ind_active, on='quarter', how='left')
-ind_join['industry_avg'] = ind_join['total_laid_off'] / ind_join['active_companies'].replace(0, np.nan)
-
-# Per-quarter totals for the focus company
-comp_q = (
-    df_industry[df_industry['company'] == highlight_company]
-    .groupby('quarter')['total_laid_off'].sum().reset_index()
-    .rename(columns={'total_laid_off': 'company_total'})
+#4> Layoff Rounds per Year ----------------
+st.subheader("4. Layoff Rounds per Year")
+rounds_year = (
+    df_company.dropna(subset=["date"])
+    .groupby("year")["date"].nunique()
+    .reset_index(name="layoff_rounds")
+    .sort_values("year")
 )
-
-# Build full quarter range union of both series
-q_all = pd.PeriodIndex(pd.Index(ind_join['quarter']).astype(str), freq='Q')
-if not comp_q.empty:
-    q_all = q_all.union(pd.PeriodIndex(pd.Index(comp_q['quarter']).astype(str), freq='Q'))
-q_min, q_max = (q_all.min(), q_all.max()) if len(q_all) else (None, None)
-if q_min is None or q_max is None:
-    comp_vs_avg = ind_join.merge(comp_q, on='quarter', how='left')
-else:
-    full_quarters = pd.period_range(q_min, q_max, freq='Q').astype(str)
-    comp_vs_avg = pd.DataFrame({'quarter': full_quarters}).merge(ind_join, on='quarter', how='left').merge(comp_q, on='quarter', how='left')
-
-comp_vs_avg['company_total'] = comp_vs_avg['company_total'].fillna(0)
-
-# Optional smoothing using the same toggle
-if smooth_toggle:
-    comp_vs_avg['industry_avg_s'] = comp_vs_avg['industry_avg'].rolling(2, min_periods=1).mean()
-    comp_vs_avg['company_total_s'] = comp_vs_avg['company_total'].rolling(2, min_periods=1).mean()
-    y_cols = ['company_total_s', 'industry_avg_s']
-    y_names = {'company_total_s': highlight_company, 'industry_avg_s': 'Industry Avg / Active Co'}
-else:
-    y_cols = ['company_total', 'industry_avg']
-    y_names = {'company_total': highlight_company, 'industry_avg': 'Industry Avg / Active Co'}
-
-plot_df = comp_vs_avg[['quarter'] + y_cols].melt(id_vars='quarter', value_vars=y_cols, var_name='series', value_name='value')
-plot_df['series'] = plot_df['series'].map(y_names)
-
-fig_cmp = px.line(plot_df, x='quarter', y='value', color='series', markers=True)
-fig_cmp.update_layout(
-    xaxis_title="Quarter",
-    yaxis_title="Layoffs",
-    template="plotly_white",
-    legend_title_text=""
+fig_rounds = px.bar(rounds_year, x="year", y="layoff_rounds")
+fig_rounds.update_layout(
+    xaxis_title="Year",
+    yaxis_title="Layoff Rounds",
+    template="plotly_white"
 )
-st.plotly_chart(fig_cmp, use_container_width=True)
+st.plotly_chart(fig_rounds, use_container_width=True)
 
-st.markdown("---")
-
-#6> Layoff Events Table for Focus Company ----------
-st.subheader(f"6. Layoff Events for {highlight_company}")
-selected_df = df_industry[df_industry['company'] == highlight_company].copy()
-display_cols = ['date', 'location', 'total_laid_off', 'percentage_laid_off']
-if selected_df.empty:
-    st.info("No layoff events found for the selected company in this industry.")
+#5> Top Locations ----------------
+st.subheader("5. Top Locations by Total Layoffs")
+if "location" in df_company.columns and df_company["location"].notna().any():
+    top_loc = (
+        df_company.groupby("location")["total_laid_off"]
+        .sum().sort_values(ascending=False).head(10).reset_index()
+    )
+    fig_loc = px.bar(top_loc, x="total_laid_off", y="location", orientation="h")
+    fig_loc.update_layout(
+        xaxis_title="Total Laid Off",
+        yaxis_title="Location",
+        template="plotly_white"
+    )
+    st.plotly_chart(fig_loc, use_container_width=True)
 else:
-    st.dataframe(selected_df[display_cols].sort_values('date'), use_container_width=True)
+    st.info("No location data available for this company in the selected years.")
 
 st.markdown("---")
 
+# ---------------- Events Table + CSV Download ----------------
+st.subheader("6. Layoff Events (Filtered)")
+display_cols = [
+    "date", "quarter", "location", "country", "industry", "stage",
+    "company_size_category", "total_laid_off", "percentage_laid_off"
+]
+table_df = df_company[display_cols].sort_values("date")
+st.dataframe(table_df, use_container_width=True)
+
+def df_to_csv_bytes(d: pd.DataFrame) -> bytes:
+    return d.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    "⬇️ Download events (CSV)",
+    data=df_to_csv_bytes(table_df),
+    file_name=f"{selected_company}_events_{years_label.replace(', ', '-')}.csv",
+    mime="text/csv",
+    key="download_company_events_csv"
+)
