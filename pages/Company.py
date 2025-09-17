@@ -7,7 +7,7 @@ import plotly.express as px
 from io import BytesIO
 
 st.set_page_config(page_title="Company Profiles", layout="wide")
-st.title("🏢 Company Layoff Profiles")
+st.title("Company Layoff Profiles")
 
 @st.cache_data
 def load_data():

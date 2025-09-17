@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 
 st.set_page_config(page_title="Layoff Trends", layout="wide")
-st.title("📊 Tech Layoff Trends")
+st.title("Tech Layoff Trends")
 def pct_change_safe(curr, prev):
     if prev == 0 or pd.isna(prev):
         return np.nan

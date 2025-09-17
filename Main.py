@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 
 st.set_page_config(page_title="Tech Layoffs Dashboard", layout="wide")
-st.title("📊 Tech Layoffs Analysis Dashboard")
+st.title("Tech Layoffs Analysis Dashboard")
 
 # --- Load Data ---
 @st.cache_data
@@ -39,7 +39,7 @@ Our goal: uncover **patterns**, provide **company-level insights**, and measure 
 through **custom metrics**.
 
 ---
-### 📌 About the Dataset
+### About the Dataset
 - **Source:** Aggregated public records & verified layoff trackers
 - **Timeframe:** 2020 — Present
 - **Scope:** Tech sector — hardware, software, fintech, startups, etc.
@@ -49,9 +49,9 @@ While the dataset captures a broad spectrum of events, some entries may be incom
 Analyses reflect only the available data.
 
 ---
-## 📂 Dashboard Pages Overview
+## Dashboard Pages Overview
 
-### 1️⃣ **Trends**
+### **1. Trends**
 Macro view of layoffs:
 - Quarterly totals, YoY & QoQ changes
 - Country and industry rankings
@@ -59,14 +59,14 @@ Macro view of layoffs:
 - Outlier events
 - Optional normalization per active company
 
-### 2️⃣ **Company**
+###  **2. Company**
 Industry & company drilldown:
 - Top companies in an industry
 - Industry share donut chart
 - Compare focus company vs top peers
 - Event history table
 
-### 3️⃣ **Custom Metrics**
+### **3. Custom Metrics**
 Advanced quantitative analysis:
 - **Layoff Efficiency** – % of workforce cut
 - **Layoff Instability** – volatility in layoffs over time
@@ -74,7 +74,7 @@ Advanced quantitative analysis:
 - Includes formulas & interpretations
 
 ---
-💡 **How to Use**:
+**How to Use?**:
 - Use **sidebar filters** to refine scope (year, country, industry, company).
 - Hover on charts for tooltips.
 - Download tables from the **Company** page for your own analysis.

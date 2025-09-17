@@ -6,7 +6,7 @@ import numpy as np
 import plotly.express as px
 
 st.set_page_config(page_title="Custom Metrics", layout="wide")
-st.title("🧮 Custom Derived Metrics")
+st.title("Custom Derived Metrics")
 
 # --- Larger descriptions under each heading ---
 st.markdown(
